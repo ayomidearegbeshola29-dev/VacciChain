@@ -1,11 +1,11 @@
 use soroban_sdk::{Env, Address, Vec};
-use crate::storage::{DataKey, VaccinationRecord};
+use crate::storage::{DataKey, VaccinationRecord, hash_address};
 
 pub fn verify_vaccination(env: &Env, wallet: Address) -> (bool, Vec<VaccinationRecord>) {
     let tokens: Vec<u64> = env
         .storage()
         .persistent()
-        .get(&DataKey::PatientTokens(wallet))
+        .get(&DataKey::PatientTokens(hash_address(env, &wallet)))
         .unwrap_or(Vec::new(env));
 
     if tokens.is_empty() {

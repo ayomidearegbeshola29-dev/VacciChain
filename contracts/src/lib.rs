@@ -6,7 +6,7 @@ mod mint;
 mod verify;
 
 use soroban_sdk::{contract, contractimpl, contracterror, Address, Env, String, Vec};
-use storage::{DataKey, VaccinationRecord};
+use storage::{DataKey, VaccinationRecord, hash_address};
 
 #[contracterror]
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -38,7 +38,7 @@ impl VacciChainContract {
     pub fn add_issuer(env: Env, issuer: Address) {
         let admin: Address = env.storage().persistent().get(&DataKey::Admin).expect("not initialized");
         admin.require_auth();
-        env.storage().persistent().set(&DataKey::Issuer(issuer.clone()), &true);
+        env.storage().persistent().set(&DataKey::Issuer(hash_address(&env, &issuer)), &true);
         events::emit_issuer_added(&env, &issuer, &admin);
     }
 
@@ -46,7 +46,7 @@ impl VacciChainContract {
     pub fn revoke_issuer(env: Env, issuer: Address) {
         let admin: Address = env.storage().persistent().get(&DataKey::Admin).expect("not initialized");
         admin.require_auth();
-        env.storage().persistent().set(&DataKey::Issuer(issuer.clone()), &false);
+        env.storage().persistent().set(&DataKey::Issuer(hash_address(&env, &issuer)), &false);
         events::emit_issuer_revoked(&env, &issuer, &admin);
     }
 
@@ -75,7 +75,7 @@ impl VacciChainContract {
     pub fn is_issuer(env: Env, address: Address) -> bool {
         env.storage()
             .persistent()
-            .get(&DataKey::Issuer(address))
+            .get(&DataKey::Issuer(hash_address(&env, &address)))
             .unwrap_or(false)
     }
 
@@ -113,7 +113,7 @@ impl VacciChainContract {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use soroban_sdk::{testutils::Address as _, Env, String};
+    use soroban_sdk::{testutils::Address as _, testutils::Ledger as _, Env, String};
 
     #[test]
     fn test_mint_and_verify() {
@@ -127,7 +127,7 @@ mod tests {
         let issuer = Address::generate(&env);
         let patient = Address::generate(&env);
 
-        client.initialize(&admin).unwrap();
+        client.initialize(&admin);
         client.add_issuer(&issuer);
 
         let token_id = client.mint_vaccination(
@@ -154,7 +154,7 @@ mod tests {
         let client = VacciChainContractClient::new(&env, &contract_id);
 
         let admin = Address::generate(&env);
-        client.initialize(&admin).unwrap();
+        client.initialize(&admin);
 
         let from = Address::generate(&env);
         let to = Address::generate(&env);
@@ -174,7 +174,7 @@ mod tests {
         let fake_issuer = Address::generate(&env);
         let patient = Address::generate(&env);
 
-        client.initialize(&admin).unwrap();
+        client.initialize(&admin);
         client.mint_vaccination(
             &patient,
             &String::from_str(&env, "COVID-19"),
@@ -196,7 +196,7 @@ mod tests {
         let issuer = Address::generate(&env);
         let patient = Address::generate(&env);
 
-        client.initialize(&admin).unwrap();
+        client.initialize(&admin);
         client.add_issuer(&issuer);
 
         client.mint_vaccination(
@@ -222,7 +222,7 @@ mod tests {
         let client = VacciChainContractClient::new(&env, &contract_id);
 
         let admin = Address::generate(&env);
-        client.initialize(&admin).unwrap();
+        client.initialize(&admin);
 
         let result = client.try_initialize(&admin);
         assert_eq!(result, Err(Ok(ContractError::AlreadyInitialized)));
@@ -239,9 +239,9 @@ mod tests {
         let admin = Address::generate(&env);
         let new_admin = Address::generate(&env);
 
-        client.initialize(&admin).unwrap();
-        client.propose_admin(&new_admin).unwrap();
-        client.accept_admin().unwrap();
+        client.initialize(&admin);
+        client.propose_admin(&new_admin);
+        client.accept_admin();
 
         // new_admin should now be admin — verify by calling add_issuer (only admin can)
         let issuer = Address::generate(&env);
@@ -259,8 +259,8 @@ mod tests {
         let admin = Address::generate(&env);
         let new_admin = Address::generate(&env);
 
-        client.initialize(&admin).unwrap();
-        client.propose_admin(&new_admin).unwrap();
+        client.initialize(&admin);
+        client.propose_admin(&new_admin);
 
         // Advance ledger time past 24 hours
         env.ledger().with_mut(|l| l.timestamp += 86401);

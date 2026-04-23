@@ -1,4 +1,8 @@
-use soroban_sdk::{contracttype, Address, String};
+use soroban_sdk::{contracttype, Address, String, BytesN, Env, xdr::ToXdr};
+
+pub fn hash_address(env: &Env, address: &Address) -> BytesN<32> {
+    env.crypto().sha256(&address.to_xdr(env)).into()
+}
 
 #[contracttype]
 #[derive(Clone)]
@@ -17,8 +21,8 @@ pub enum DataKey {
     Initialized,
     PendingAdmin,
     AdminTransferExpiry,
-    Issuer(Address),
-    PatientTokens(Address),
+    Issuer(BytesN<32>),
+    PatientTokens(BytesN<32>),
     Token(u64),
     NextTokenId,
 }
