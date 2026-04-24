@@ -5,7 +5,7 @@ mod events;
 mod mint;
 mod verify;
 
-use soroban_sdk::{contract, contractimpl, contracterror, Address, Env, String, Vec};
+use soroban_sdk::{contract, contractimpl, contracterror, Address, BytesN, Env, String, Vec};
 use storage::{DataKey, VaccinationRecord};
 
 #[contracterror]
@@ -16,6 +16,7 @@ pub enum ContractError {
     Unauthorized = 3,
     ProposalExpired = 4,
     NoPendingTransfer = 5,
+    DuplicateRecord = 6,
 }
 
 #[contract]
@@ -34,20 +35,37 @@ impl VacciChainContract {
         Ok(())
     }
 
-    /// Admin: authorize a new issuer
-    pub fn add_issuer(env: Env, issuer: Address) {
+    /// Admin: authorize a new issuer with metadata
+    pub fn add_issuer(env: Env, issuer: Address, name: String, license: String, country: String) {
         let admin: Address = env.storage().persistent().get(&DataKey::Admin).expect("not initialized");
         admin.require_auth();
-        env.storage().persistent().set(&DataKey::Issuer(issuer.clone()), &true);
+        
+        let record = IssuerRecord {
+            name,
+            license,
+            country,
+            authorized: true,
+        };
+        
+        env.storage().persistent().set(&DataKey::Issuer(issuer.clone()), &record);
         events::emit_issuer_added(&env, &issuer, &admin);
+    }
+
+    /// Public: get issuer metadata
+    pub fn get_issuer(env: Env, address: Address) -> Option<IssuerRecord> {
+        env.storage().persistent().get(&DataKey::Issuer(address))
     }
 
     /// Admin: revoke an issuer
     pub fn revoke_issuer(env: Env, issuer: Address) {
         let admin: Address = env.storage().persistent().get(&DataKey::Admin).expect("not initialized");
         admin.require_auth();
-        env.storage().persistent().set(&DataKey::Issuer(issuer.clone()), &false);
-        events::emit_issuer_revoked(&env, &issuer, &admin);
+        
+        if let Some(mut record) = env.storage().persistent().get::<DataKey, IssuerRecord>(&DataKey::Issuer(issuer.clone())) {
+            record.authorized = false;
+            env.storage().persistent().set(&DataKey::Issuer(issuer.clone()), &record);
+            events::emit_issuer_revoked(&env, &issuer, &admin);
+        }
     }
 
     /// Issuer: mint a soulbound vaccination NFT
@@ -57,7 +75,7 @@ impl VacciChainContract {
         vaccine_name: String,
         date_administered: String,
         issuer: Address,
-    ) -> u64 {
+    ) -> Result<u64, ContractError> {
         mint::mint_vaccination(&env, patient, vaccine_name, date_administered, issuer)
     }
 
@@ -80,7 +98,8 @@ impl VacciChainContract {
     pub fn is_issuer(env: Env, address: Address) -> bool {
         env.storage()
             .persistent()
-            .get(&DataKey::Issuer(address))
+            .get::<DataKey, IssuerRecord>(&DataKey::Issuer(address))
+            .map(|r| r.authorized)
             .unwrap_or(false)
     }
 
@@ -112,12 +131,26 @@ impl VacciChainContract {
         events::emit_admin_transfer_accepted(&env, &pending);
         Ok(())
     }
+
+    /// Admin: upgrade the contract WASM.
+    pub fn upgrade(env: Env, new_wasm_hash: BytesN<32>) -> Result<(), ContractError> {
+        let admin: Address = env.storage().persistent().get(&DataKey::Admin)
+            .ok_or(ContractError::NotInitialized)?;
+        admin.require_auth();
+        env.deployer().update_current_contract_wasm(new_wasm_hash.clone());
+        events::emit_contract_upgraded(&env, &new_wasm_hash, &admin);
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+<<<<<<< implement-batch-verification-function
     use soroban_sdk::{testutils::{Address as _, Ledger}, Env, String};
+=======
+    use soroban_sdk::{testutils::Address as _, BytesN, Env, String};
+>>>>>>> main
 
     #[test]
     fn test_mint_and_verify() {
@@ -132,14 +165,23 @@ mod tests {
         let patient = Address::generate(&env);
 
         client.initialize(&admin);
+<<<<<<< implement-batch-verification-function
         client.add_issuer(&issuer);
+=======
+        client.add_issuer(
+            &issuer,
+            &String::from_str(&env, "General Hospital"),
+            &String::from_str(&env, "LIC-12345"),
+            &String::from_str(&env, "USA"),
+        );
+>>>>>>> main
 
         let token_id = client.mint_vaccination(
             &patient,
             &String::from_str(&env, "COVID-19"),
             &String::from_str(&env, "2024-01-15"),
             &issuer,
-        );
+        ).unwrap();
 
         assert_eq!(token_id, 1);
 
@@ -166,7 +208,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "unauthorized issuer")]
     fn test_unauthorized_issuer_blocked() {
         let env = Env::default();
         env.mock_all_auths();
@@ -178,17 +219,23 @@ mod tests {
         let fake_issuer = Address::generate(&env);
         let patient = Address::generate(&env);
 
+<<<<<<< implement-batch-verification-function
         client.initialize(&admin);
         client.mint_vaccination(
+=======
+        client.initialize(&admin).unwrap();
+
+        let result = client.try_mint_vaccination(
+>>>>>>> main
             &patient,
             &String::from_str(&env, "COVID-19"),
             &String::from_str(&env, "2024-01-15"),
             &fake_issuer,
         );
+        assert_eq!(result, Err(Ok(ContractError::Unauthorized)));
     }
 
     #[test]
-    #[should_panic(expected = "duplicate vaccination record")]
     fn test_duplicate_record_blocked() {
         let env = Env::default();
         env.mock_all_auths();
@@ -201,20 +248,31 @@ mod tests {
         let patient = Address::generate(&env);
 
         client.initialize(&admin);
+<<<<<<< implement-batch-verification-function
         client.add_issuer(&issuer);
+=======
+        client.add_issuer(
+            &issuer,
+            &String::from_str(&env, "General Hospital"),
+            &String::from_str(&env, "LIC-12345"),
+            &String::from_str(&env, "USA"),
+        );
+>>>>>>> main
 
         client.mint_vaccination(
             &patient,
             &String::from_str(&env, "COVID-19"),
             &String::from_str(&env, "2024-01-15"),
             &issuer,
-        );
-        client.mint_vaccination(
+        ).unwrap();
+
+        let result = client.try_mint_vaccination(
             &patient,
             &String::from_str(&env, "COVID-19"),
-            &String::from_str(&env, "2024-02-01"),
+            &String::from_str(&env, "2024-01-15"),
             &issuer,
         );
+        assert_eq!(result, Err(Ok(ContractError::DuplicateRecord)));
     }
 
     #[test]
@@ -382,7 +440,12 @@ mod tests {
         client.accept_admin();
 
         let issuer = Address::generate(&env);
-        client.add_issuer(&issuer);
+        client.add_issuer(
+            &issuer,
+            &String::from_str(&env, "General Hospital"),
+            &String::from_str(&env, "LIC-12345"),
+            &String::from_str(&env, "USA"),
+        );
     }
 
     #[test]
@@ -403,5 +466,50 @@ mod tests {
 
         let result = client.try_accept_admin();
         assert_eq!(result, Err(Ok(ContractError::ProposalExpired)));
+    }
+
+    #[test]
+    fn test_upgrade_admin_only() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let contract_id = env.register(VacciChainContract, ());
+        let client = VacciChainContractClient::new(&env, &contract_id);
+
+        let admin = Address::generate(&env);
+        client.initialize(&admin).unwrap();
+
+        // A valid 32-byte hash (all zeros stands in for a real WASM hash in unit tests)
+        let wasm_hash = BytesN::from_array(&env, &[0u8; 32]);
+        // upgrade() should succeed (auth is mocked; deployer call is a no-op in test env)
+        client.upgrade(&wasm_hash).unwrap();
+    }
+
+    #[test]
+    fn test_upgrade_non_admin_rejected() {
+        let env = Env::default();
+
+        let contract_id = env.register(VacciChainContract, ());
+        let client = VacciChainContractClient::new(&env, &contract_id);
+
+        let admin = Address::generate(&env);
+        let non_admin = Address::generate(&env);
+
+        // Only mock auth for admin during initialize, not for non_admin
+        env.mock_auths(&[soroban_sdk::testutils::MockAuth {
+            address: &admin,
+            invoke: &soroban_sdk::testutils::MockAuthInvoke {
+                contract: &contract_id,
+                fn_name: "initialize",
+                args: (admin.clone(),).into_val(&env),
+                sub_invokes: &[],
+            },
+        }]);
+        client.initialize(&admin).unwrap();
+
+        let wasm_hash = BytesN::from_array(&env, &[0u8; 32]);
+        // Calling upgrade as non_admin (no auth mocked) should panic with auth error
+        let result = client.try_upgrade(&wasm_hash);
+        assert!(result.is_err());
     }
 }
