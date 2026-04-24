@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useRef } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import {
   isConnected,
   getPublicKey,
@@ -6,15 +6,24 @@ import {
 } from '@stellar/freighter-api';
 
 const AuthContext = createContext(null);
+const STORAGE_KEY = 'vaccichain_wallet';
 
 export function AuthProvider({ children }) {
   const [publicKey, setPublicKey] = useState(null);
   const [token, setToken] = useState(null);
   const [role, setRole] = useState(null);
-  // Holds the current token without requiring it as a closure dep in apiFetch
-  const tokenRef = useRef(null);
+  const [freighterInstalled, setFreighterInstalled] = useState(true);
 
-  const runSep10 = useCallback(async (pk) => {
+  const connect = useCallback(async () => {
+    const connected = await isConnected();
+    if (!connected) {
+      setFreighterInstalled(false);
+      throw new Error('Freighter wallet not found. Please install it.');
+    }
+
+    const pk = await getPublicKey();
+
+    // SEP-10 flow
     const challengeRes = await fetch('/auth/sep10', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -41,6 +50,7 @@ export function AuthProvider({ children }) {
     setToken(data.token);
     tokenRef.current = data.token;
     setRole(data.role);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ publicKey: pk, token: data.token, role: data.role }));
     return data;
   }, [runSep10]);
 
@@ -49,6 +59,26 @@ export function AuthProvider({ children }) {
     setToken(null);
     tokenRef.current = null;
     setRole(null);
+    localStorage.removeItem(STORAGE_KEY);
+  }, []);
+
+  // Auto-reconnect on mount if previously connected
+  useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return;
+
+    const { publicKey: savedKey, token: savedToken, role: savedRole } = JSON.parse(saved);
+
+    isConnected().then((connected) => {
+      if (!connected) {
+        setFreighterInstalled(false);
+        localStorage.removeItem(STORAGE_KEY);
+        return;
+      }
+      setPublicKey(savedKey);
+      setToken(savedToken);
+      setRole(savedRole);
+    }).catch(() => localStorage.removeItem(STORAGE_KEY));
   }, []);
 
   // Fetch wrapper: on 401, re-runs SEP-10 silently and retries once
@@ -73,7 +103,7 @@ export function AuthProvider({ children }) {
   }, [runSep10]);
 
   return (
-    <AuthContext.Provider value={{ publicKey, token, role, connect, disconnect, apiFetch }}>
+    <AuthContext.Provider value={{ publicKey, token, role, freighterInstalled, connect, disconnect }}>
       {children}
     </AuthContext.Provider>
   );
