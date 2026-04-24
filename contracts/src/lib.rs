@@ -16,6 +16,7 @@ pub enum ContractError {
     Unauthorized = 3,
     ProposalExpired = 4,
     NoPendingTransfer = 5,
+    DuplicateRecord = 6,
 }
 
 #[contract]
@@ -57,7 +58,7 @@ impl VacciChainContract {
         vaccine_name: String,
         date_administered: String,
         issuer: Address,
-    ) -> u64 {
+    ) -> Result<u64, ContractError> {
         mint::mint_vaccination(&env, patient, vaccine_name, date_administered, issuer)
     }
 
@@ -135,7 +136,7 @@ mod tests {
             &String::from_str(&env, "COVID-19"),
             &String::from_str(&env, "2024-01-15"),
             &issuer,
-        );
+        ).unwrap();
 
         assert_eq!(token_id, 1);
 
@@ -162,7 +163,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "unauthorized issuer")]
     fn test_unauthorized_issuer_blocked() {
         let env = Env::default();
         env.mock_all_auths();
@@ -175,16 +175,17 @@ mod tests {
         let patient = Address::generate(&env);
 
         client.initialize(&admin).unwrap();
-        client.mint_vaccination(
+
+        let result = client.try_mint_vaccination(
             &patient,
             &String::from_str(&env, "COVID-19"),
             &String::from_str(&env, "2024-01-15"),
             &fake_issuer,
         );
+        assert_eq!(result, Err(Ok(ContractError::Unauthorized)));
     }
 
     #[test]
-    #[should_panic(expected = "duplicate vaccination record")]
     fn test_duplicate_record_blocked() {
         let env = Env::default();
         env.mock_all_auths();
@@ -204,13 +205,15 @@ mod tests {
             &String::from_str(&env, "COVID-19"),
             &String::from_str(&env, "2024-01-15"),
             &issuer,
-        );
-        client.mint_vaccination(
+        ).unwrap();
+
+        let result = client.try_mint_vaccination(
             &patient,
             &String::from_str(&env, "COVID-19"),
-            &String::from_str(&env, "2024-02-01"),
+            &String::from_str(&env, "2024-01-15"),
             &issuer,
         );
+        assert_eq!(result, Err(Ok(ContractError::DuplicateRecord)));
     }
 
     #[test]
