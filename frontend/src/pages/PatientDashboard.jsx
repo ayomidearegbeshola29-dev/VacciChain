@@ -35,7 +35,7 @@ export default function PatientDashboard() {
     return (
       <div style={styles.page}>
         <p style={{ color: '#94a3b8', marginBottom: '1rem' }}>Connect your wallet to view records.</p>
-        <button style={styles.btn} onClick={connect}>Connect Wallet</button>
+        <button style={styles.btn} onClick={connect} aria-label="Connect Freighter wallet to view vaccination records">Connect Wallet</button>
       </div>
     );
   }
