@@ -7,9 +7,9 @@ import NFTCardSkeleton from '../components/NFTCardSkeleton';
 import RecordDetailModal from '../components/RecordDetailModal';
 
 const styles = {
-  page: { maxWidth: 700, margin: '2rem auto', padding: '0 1rem' },
+  page: { maxWidth: 700, width: '100%', margin: '2rem auto', padding: '0 1rem', boxSizing: 'border-box' },
   btn: { padding: '0.6rem 1.5rem', background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' },
-  controls: { display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '1.25rem' },
+  controls: { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.75rem', marginTop: '1.25rem' },
   pageBtn: {
     padding: '0.4rem 0.9rem', background: '#1e293b', color: '#e2e8f0',
     border: '1px solid #334155', borderRadius: 6, cursor: 'pointer',
@@ -44,13 +44,13 @@ export default function PatientDashboard() {
 
   return (
     <div style={styles.page}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '1.5rem' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'baseline', gap: '0.5rem', marginBottom: '1.5rem' }}>
         <h2 style={{ color: '#e2e8f0', margin: 0 }}>My Vaccination Records</h2>
         {total > 0 && (
           <span style={{ color: '#64748b', fontSize: '0.85rem' }}>{total} record{total !== 1 ? 's' : ''}</span>
         )}
       </div>
-      <p style={{ color: '#64748b', fontSize: '0.85rem', marginBottom: '1.5rem' }}>Wallet: {publicKey}</p>
+      <p style={{ color: '#64748b', fontSize: '0.85rem', marginBottom: '1.5rem', wordBreak: 'break-all' }}>Wallet: {publicKey}</p>
 
       {loading && <NFTCardSkeleton count={3} />}
       {!loading && error && (
