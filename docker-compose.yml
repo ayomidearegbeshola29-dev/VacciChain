@@ -17,6 +17,10 @@ services:
       - python-service
     networks:
       - vaccichain
+    logging:
+      driver: json-file
+      options:
+        tag: "{{.Name}}"
 
   python-service:
     build: ./python-service
@@ -26,7 +30,53 @@ services:
       - BACKEND_URL=http://backend:4000
     networks:
       - vaccichain
+    logging:
+      driver: json-file
+      options:
+        tag: "{{.Name}}"
+
+  loki:
+    image: grafana/loki:2.9.4
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./logging/loki-config.yml:/etc/loki/config.yml:ro
+      - loki-data:/loki
+    command: -config.file=/etc/loki/config.yml
+    networks:
+      - vaccichain
+
+  promtail:
+    image: grafana/promtail:2.9.4
+    volumes:
+      - ./logging/promtail-config.yml:/etc/promtail/config.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+    networks:
+      - vaccichain
+
+  grafana:
+    image: grafana/grafana:10.3.3
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+    volumes:
+      - ./logging/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - loki
+    networks:
+      - vaccichain
 
 networks:
   vaccichain:
     driver: bridge
+
+volumes:
+  loki-data:
+  grafana-data:
