@@ -14,8 +14,7 @@ export function AuthProvider({ children }) {
   const [publicKey, setPublicKey] = useState(null);
   const [token, setToken] = useState(null);
   const [role, setRole] = useState(null);
-  const [freighterInstalled, setFreighterInstalled] = useState(true);
-  const tokenRef = useRef(null);
+  const [freighterInstalled, setFreighterInstalled] = useState(() => typeof window !== 'undefined' && !!window.freighter);
 
   const runSep10 = useCallback(async (pk) => {
     const challengeRes = await fetch('/auth/sep10', {
