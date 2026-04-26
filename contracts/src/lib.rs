@@ -99,14 +99,33 @@ impl VacciChainContract {
             authorized: true,
         };
 
-        env.storage().persistent().set(&DataKey::Issuer(issuer.clone()), &record);
+        env.storage().persistent().set(&DataKey::IssuerMeta(issuer_key.clone()), &record);
+
+        let mut issuers: Vec<Address> = env
+            .storage()
+            .persistent()
+            .get(&DataKey::IssuerList)
+            .unwrap_or(Vec::new(&env));
+        let mut exists = false;
+        for i in 0..issuers.len() {
+            if issuers.get(i).unwrap() == issuer {
+                exists = true;
+                break;
+            }
+        }
+        if !exists {
+            issuers.push_back(issuer.clone());
+            env.storage().persistent().set(&DataKey::IssuerList, &issuers);
+        }
         events::emit_issuer_added(&env, &issuer, &admin);
         Ok(())
     }
 
     /// Public: get issuer metadata
     pub fn get_issuer(env: Env, address: Address) -> Option<IssuerRecord> {
-        env.storage().persistent().get(&DataKey::Issuer(address))
+        env.storage()
+            .persistent()
+            .get(&DataKey::IssuerMeta(hash_address(&env, &address)))
     }
 
     /// Admin: revoke an issuer
@@ -114,10 +133,15 @@ impl VacciChainContract {
         let admin: Address = env.storage().persistent().get(&DataKey::Admin).expect("not initialized");
         admin.require_auth();
 
-        if let Some(mut record) = env.storage().persistent().get::<DataKey, IssuerRecord>(&DataKey::Issuer(issuer.clone())) {
+        if let Some(mut record) = env
+            .storage()
+            .persistent()
+            .get::<DataKey, IssuerRecord>(&DataKey::IssuerMeta(hash_address(&env, &issuer)))
+        {
             record.authorized = false;
-            env.storage().persistent().set(&DataKey::Issuer(issuer.clone()), &record);
-            events::emit_issuer_revoked(&env, &issuer, &admin);
+            env.storage()
+                .persistent()
+                .set(&DataKey::IssuerMeta(hash_address(&env, &issuer)), &record);
         }
     }
 
@@ -190,6 +214,41 @@ impl VacciChainContract {
             .get::<DataKey, IssuerRecord>(&DataKey::Issuer(address))
             .map(|r| r.authorized)
             .unwrap_or(false)
+    }
+
+    /// Public: list currently authorized issuers with pagination.
+    pub fn get_all_issuers(env: Env, start: u32, limit: u32) -> Vec<Address> {
+        if limit == 0 {
+            return Vec::new(&env);
+        }
+
+        let issuers: Vec<Address> = env
+            .storage()
+            .persistent()
+            .get(&DataKey::IssuerList)
+            .unwrap_or(Vec::new(&env));
+
+        let mut active: Vec<Address> = Vec::new(&env);
+        for i in 0..issuers.len() {
+            let issuer = issuers.get(i).unwrap();
+            if Self::is_issuer(env.clone(), issuer.clone()) {
+                active.push_back(issuer);
+            }
+        }
+
+        let mut page: Vec<Address> = Vec::new(&env);
+        let mut seen: u32 = 0;
+        for i in 0..active.len() {
+            if seen < start {
+                seen += 1;
+                continue;
+            }
+            if page.len() >= limit {
+                break;
+            }
+            page.push_back(active.get(i).unwrap());
+        }
+        page
     }
 
     /// Admin: propose a new admin (two-step transfer). Proposal expires after 24 hours.
