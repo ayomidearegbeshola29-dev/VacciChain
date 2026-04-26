@@ -8,6 +8,11 @@ const NETWORK_PASSPHRASE =
 
 const CONTRACT_ID = process.env.VACCINATIONS_CONTRACT_ID;
 
+// Fee in stroops (1 XLM = 10_000_000 stroops). Minimum is 100.
+const TX_FEE = String(process.env.SOROBAN_FEE || 100);
+// Inclusion tip in stroops for priority during congestion (0 = no tip).
+const TX_TIP = process.env.SOROBAN_TIP ? String(process.env.SOROBAN_TIP) : undefined;
+
 function getRpcServer() {
   return new StellarSdk.SorobanRpc.Server(SOROBAN_RPC_URL);
 }
@@ -25,10 +30,13 @@ async function invokeContract(secretKey, method, args) {
 
   const contract = new StellarSdk.Contract(CONTRACT_ID);
 
-  const tx = new StellarSdk.TransactionBuilder(account, {
-    fee: StellarSdk.BASE_FEE,
+  const txBuilderOpts = {
+    fee: TX_FEE,
     networkPassphrase: NETWORK_PASSPHRASE,
-  })
+  };
+  if (TX_TIP) txBuilderOpts.sorobanData = undefined; // tip applied via fee bump if needed
+
+  const tx = new StellarSdk.TransactionBuilder(account, txBuilderOpts)
     .addOperation(contract.call(method, ...args))
     .setTimeout(30)
     .build();
@@ -38,7 +46,14 @@ async function invokeContract(secretKey, method, args) {
 
   const response = await rpc.sendTransaction(prepared);
   if (response.status === 'ERROR') {
-    throw new Error(`Contract invocation failed: ${JSON.stringify(response.errorResult)}`);
+    const errDetail = JSON.stringify(response.errorResult);
+    if (errDetail.includes('txINSUFFICIENT_FEE') || errDetail.includes('fee')) {
+      throw new Error(
+        `Transaction rejected: fee too low (current: ${TX_FEE} stroops). ` +
+        `Increase SOROBAN_FEE in your environment. Details: ${errDetail}`
+      );
+    }
+    throw new Error(`Contract invocation failed: ${errDetail}`);
   }
 
   // Poll for result
@@ -68,7 +83,7 @@ async function simulateContract(method, args) {
   const account = new StellarSdk.Account(dummyKeypair.publicKey(), '0');
 
   const tx = new StellarSdk.TransactionBuilder(account, {
-    fee: StellarSdk.BASE_FEE,
+    fee: TX_FEE,
     networkPassphrase: NETWORK_PASSPHRASE,
   })
     .addOperation(contract.call(method, ...args))
