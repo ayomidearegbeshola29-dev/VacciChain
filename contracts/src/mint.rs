@@ -1,6 +1,5 @@
 use soroban_sdk::{Env, Address, String, Vec};
-use crate::storage::{DataKey, VaccinationRecord, hash_address};
-use crate::storage::{DataKey, VaccinationRecord, IssuerRecord};
+use crate::storage::{DataKey, VaccinationRecord, IssuerRecord, hash_address, compute_token_id};
 use crate::events;
 use crate::ContractError;
 use crate::validate_input_length;
@@ -22,7 +21,6 @@ pub fn mint_vaccination(
     let is_authorized: bool = env
         .storage()
         .persistent()
-        .get(&DataKey::Issuer(hash_address(env, &issuer)))
         .get::<DataKey, IssuerRecord>(&DataKey::Issuer(issuer.clone()))
         .map(|r| r.authorized)
         .unwrap_or(false);
@@ -30,7 +28,25 @@ pub fn mint_vaccination(
         return Err(ContractError::Unauthorized);
     }
 
-    // Duplicate detection: (patient, vaccine_name, date_administered) must be unique
+    // Compute deterministic token_id:
+    //   SHA-256(patient_xdr || vaccine_name || date_administered || issuer_xdr || ledger_sequence)
+    //   truncated to first 8 bytes as big-endian u64.
+    let ledger_sequence = env.ledger().sequence();
+    let token_id = compute_token_id(
+        env,
+        &patient,
+        &vaccine_name,
+        &date_administered,
+        &issuer,
+        ledger_sequence,
+    );
+
+    // Duplicate detection: token_id collision means identical record already exists
+    if env.storage().persistent().has(&DataKey::Token(token_id)) {
+        return Err(ContractError::DuplicateRecord);
+    }
+
+    // Also check patient's existing tokens for same (vaccine_name, date_administered)
     let tokens: Vec<u64> = env
         .storage()
         .persistent()
@@ -49,13 +65,6 @@ pub fn mint_vaccination(
         }
     }
 
-    // Assign token ID
-    let token_id: u64 = env
-        .storage()
-        .persistent()
-        .get(&DataKey::NextTokenId)
-        .unwrap_or(1u64);
-
     let record = VaccinationRecord {
         token_id,
         patient: patient.clone(),
@@ -73,10 +82,9 @@ pub fn mint_vaccination(
     // Update patient token list
     let mut patient_tokens = tokens;
     patient_tokens.push_back(token_id);
-    env.storage().persistent().set(&DataKey::PatientTokens(hash_address(env, &patient)), &patient_tokens);
-
-    // Increment next token ID
-    env.storage().persistent().set(&DataKey::NextTokenId, &(token_id + 1));
+    env.storage()
+        .persistent()
+        .set(&DataKey::PatientTokens(hash_address(env, &patient)), &patient_tokens);
 
     events::emit_minted(env, token_id, &patient, &vaccine_name, &issuer);
 
