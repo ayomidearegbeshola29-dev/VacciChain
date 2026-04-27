@@ -17,6 +17,10 @@ const schema = z.object({
   JWT_SECRET: z.string().min(1),
   PORT: z.coerce.number().int().positive().default(4000),
 
+  // Transaction fees (stroops; 1 XLM = 10_000_000 stroops)
+  SOROBAN_FEE: z.coerce.number().int().positive().default(100),
+  SOROBAN_TIP: z.coerce.number().int().min(0).default(0),
+
   // Indexer
   EVENT_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(15000),
   DATABASE_PATH: z.string().default('/data/vaccichain.db'),
