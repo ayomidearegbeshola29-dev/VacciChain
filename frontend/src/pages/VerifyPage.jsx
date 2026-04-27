@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import VerificationBadge from '../components/VerificationBadge';
 import NFTCard from '../components/NFTCard';
 
@@ -9,6 +10,7 @@ const styles = {
 };
 
 export default function VerifyPage() {
+  const { t } = useTranslation();
   const [wallet, setWallet] = useState('');
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -33,21 +35,21 @@ export default function VerifyPage() {
 
   return (
     <div style={styles.page}>
-      <h2 style={{ marginBottom: '1.5rem', color: '#e2e8f0' }}>Verify Vaccination Status</h2>
+      <h2 style={{ marginBottom: '1.5rem', color: '#e2e8f0' }}>{t('verify.title')}</h2>
       <form onSubmit={handleVerify}>
         <input
           style={styles.input}
-          placeholder="Enter Stellar wallet address (G...)"
+          placeholder={t('verify.placeholder')}
           value={wallet}
           onChange={(e) => setWallet(e.target.value)}
           required
         />
         <button style={styles.btn} type="submit" disabled={loading}>
-          {loading ? 'Checking…' : 'Verify'}
+          {loading ? t('verify.checking') : t('verify.submit')}
         </button>
       </form>
 
-      {error && <p style={{ color: '#f87171', marginTop: '1rem' }}>Error: {error}</p>}
+      {error && <p style={{ color: '#f87171', marginTop: '1rem' }}>{t('verify.error', { message: error })}</p>}
 
       {result && (
         <div style={{ marginTop: '1.5rem' }}>
