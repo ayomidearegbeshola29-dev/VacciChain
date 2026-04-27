@@ -16,6 +16,8 @@ const schema = z.object({
   SEP10_SERVER_KEY: z.string().min(1),
   JWT_SECRET: z.string().min(1),
   PORT: z.coerce.number().int().positive().default(4000),
+  // Comma-separated list of allowed origins, e.g. https://app.example.com,https://admin.example.com
+  ALLOWED_ORIGINS: z.string().default('http://localhost:3000'),
 
   // Transaction fees (stroops; 1 XLM = 10_000_000 stroops)
   SOROBAN_FEE: z.coerce.number().int().positive().default(100),
