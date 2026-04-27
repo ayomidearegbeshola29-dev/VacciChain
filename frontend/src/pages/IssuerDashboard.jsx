@@ -46,6 +46,7 @@ export default function IssuerDashboard() {
     }
   });
   const [touched, setTouched] = useState({});
+  const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [confirming, setConfirming] = useState(false);
 
@@ -70,7 +71,7 @@ export default function IssuerDashboard() {
     return <div style={styles.page}><p style={{ color: '#f87171' }}>Access denied: issuer role required.</p></div>;
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const result = await issueVaccination(form);
     if (result) {
@@ -88,7 +89,7 @@ export default function IssuerDashboard() {
   return (
     <div style={styles.page}>
       <h2 style={{ marginBottom: '1.5rem', color: 'var(--text)' }}>Issue Vaccination NFT</h2>
-      <form style={styles.form} onSubmit={handleSubmit}>
+      <form style={styles.form} onSubmit={handleSubmit} role="form">
         {[
           { key: 'patient_address', label: 'Patient Stellar Address', placeholder: 'G...' },
           { key: 'vaccine_name', label: 'Vaccine Name', placeholder: 'e.g. COVID-19' },
@@ -98,12 +99,13 @@ export default function IssuerDashboard() {
             <label htmlFor={key} style={styles.label}>{label}</label>
             <input
               id={key}
-              style={styles.input}
+              style={errors[key] ? styles.inputError : styles.input}
               placeholder={placeholder}
               value={form[key]}
               onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
               required
             />
+            {errors[key] && <p style={styles.fieldError}>{errors[key]}</p>}
           </div>
         ))}
         <button style={styles.btn} type="submit" disabled={loading} aria-disabled={loading}>

@@ -1,6 +1,7 @@
 export default function NFTCard({ record, onClick }) {
   return (
     <div
+      data-testid="nft-card"
       role="button"
       tabIndex={0}
       onClick={onClick}
@@ -32,6 +33,6 @@ export default function NFTCard({ record, onClick }) {
       <p style={{ color: '#94a3b8', fontSize: '0.8rem', marginTop: '0.25rem' }}>
         Issuer: {record.issuer?.slice(0, 8)}…{record.issuer?.slice(-4)}
       </p>
-    </article>
+    </div>
   );
 }

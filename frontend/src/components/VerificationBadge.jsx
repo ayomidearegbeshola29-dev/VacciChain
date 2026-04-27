@@ -63,7 +63,7 @@ export default function VerificationBadge({ status, vaccinated, recordCount = 0 
 
   return (
     <div 
-      id="verification-badge"
+      data-testid="verification-badge"
       aria-label={config.label}
       style={{
         display: 'inline-flex',
