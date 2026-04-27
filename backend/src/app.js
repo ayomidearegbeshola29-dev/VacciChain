@@ -13,24 +13,8 @@ const adminRoutes = require('./routes/admin');
 
 const app = express();
 
-const allowedOrigins = config.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean);
-
-app.use(cors({
-  origin: (origin, callback) => {
-    // Allow server-to-server requests (no Origin header) only in non-production
-    if (!origin) {
-      return callback(null, process.env.NODE_ENV !== 'production');
-    }
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-    callback(new Error(`CORS: origin '${origin}' not allowed`));
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-}));
-app.use(express.json());
+app.use(cors());
+app.use(express.json({ limit: config.BODY_LIMIT }));
 
 // Request logging middleware
 app.use((req, _res, next) => {
