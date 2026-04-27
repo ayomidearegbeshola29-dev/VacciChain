@@ -3,6 +3,7 @@ import Landing from './pages/Landing';
 import PatientDashboard from './pages/PatientDashboard';
 import IssuerDashboard from './pages/IssuerDashboard';
 import VerifyPage from './pages/VerifyPage';
+import AdminDashboard from './pages/AdminDashboard';
 import { AuthProvider } from './hooks/useFreighter';
 import FreighterBanner from './components/FreighterBanner';
 
@@ -27,6 +28,7 @@ export default function App() {
         <NavLink to="/patient">My Records</NavLink>
         <NavLink to="/issuer">Issue</NavLink>
         <NavLink to="/verify">Verify</NavLink>
+        <NavLink to="/admin">Admin</NavLink>
       </nav>
       <FreighterBanner />
       <Routes>
@@ -34,6 +36,7 @@ export default function App() {
         <Route path="/patient" element={<PatientDashboard />} />
         <Route path="/issuer" element={<IssuerDashboard />} />
         <Route path="/verify" element={<VerifyPage />} />
+        <Route path="/admin" element={<AdminDashboard />} />
       </Routes>
     </AuthProvider>
   );
