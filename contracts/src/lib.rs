@@ -11,6 +11,9 @@ mod verify;
 #[cfg(test)]
 mod fuzz_tests;
 
+#[cfg(test)]
+mod upgrade_tests;
+
 use soroban_sdk::{contract, contractimpl, contracterror, Address, BytesN, Env, String, Vec, IntoVal};
 use storage::{DataKey, IssuerRecord, VaccinationRecord};
 
