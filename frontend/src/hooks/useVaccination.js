@@ -7,7 +7,7 @@ export function useVaccination() {
   const toast = useToast();
   const [loading, setLoading] = useState(false);
 
-  const fetchRecords = useCallback(async (wallet) => {
+  const fetchRecords = useCallback(async (wallet, { page = 1, limit = 20 } = {}) => {
     setLoading(true);
     try {
       const res = await apiFetch(`/v1/vaccination/${wallet}`);
