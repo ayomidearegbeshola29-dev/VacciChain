@@ -20,9 +20,11 @@ const apiVersion = require('./middleware/apiVersion');
 const { getRpcServer } = require('./stellar/soroban');
 
 const requestId = require('./middleware/requestId');
+const securityHeaders = require('./middleware/securityHeaders');
 
 const app = express();
 
+app.use(securityHeaders);
 app.use(cors());
 app.use(express.json({ limit: config.BODY_LIMIT }));
 app.use(requestId);
