@@ -47,7 +47,7 @@ router.post('/verify', validate(verifySchema), (req, res) => {
     const role = publicKey === process.env.ADMIN_PUBLIC_KEY ? 'issuer' : 'patient';
 
     const token = jwt.sign(
-      { publicKey, role },
+      { sub: publicKey, wallet: publicKey, publicKey, role },
       process.env.JWT_SECRET,
       { expiresIn: '1h' }
     );
